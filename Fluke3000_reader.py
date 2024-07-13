@@ -89,9 +89,9 @@ def update_scroll(val):
     ax.set_xlim((pos/100)*timecnt, ((pos/100)*timecnt) + INTERVAL)
     fig.canvas.draw_idle()
 
-    xLabels = ax.get_xticks()
-    # newLabels = timeval[xLabels[0]:(xLabels[len(xLabels)])]
-    # ax.set_xticklabels(newLabels,rotation=4,ha='right')
+    Labels = ax.get_xticks().tolist()
+    newLabels = timeval[int(xLabels[0]):int((xLabels[len(xLabels) - 1]))]
+    ax.set_xticklabels(newLabels,rotation=45,ha='right')
 
     # xlabels = ax.get_xticklabels()
     # newXLabels = [datetime.datetime for tick in xlabels]
