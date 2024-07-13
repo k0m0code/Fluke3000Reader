@@ -57,7 +57,7 @@ def animate(i):
 
     
     xval.append(timecnt)                        # Append time stamp data into xval list
-    timeval.append(datetime.datetime.now())
+    timeval.append(datetime.datetime.now().time().strftime("%H:%M:%S.%f")[:-4])
     timecnt = next(timesec)
     data = mult.measure(mult.Mode.voltage_dc)   # Measures the DC voltage
 
@@ -80,7 +80,7 @@ def animate(i):
 
 
 # Create scroll bar
-scrollax = plt.axes([0.1,0.1,0.8,0.06], facecolor = 'lightgoldenrodyellow')
+scrollax = plt.axes([0.1,0.02,0.8,0.06], facecolor = 'lightgoldenrodyellow')
 scrollbar = Slider(scrollax, 'scroll', 0, 100, valinit = 0, valstep=1)
 
 # Update and scroll through the graph display
@@ -100,7 +100,7 @@ def update_scroll(val):
 scrollbar.on_changed(update_scroll)                     # Scroll function
 ax.set_xlim(0,INTERVAL)                                 # Initial window view with starting x values
 plt.sca(ax)                                             # Set the main axes to animate line on
-
+plt.tick_params(labelsize = 9)
 
 
 
