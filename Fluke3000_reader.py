@@ -34,10 +34,16 @@ timeval = []
 timesec = count()
 timecnt = 0
 
+# Replace xaxis values with timestamps  
+def add_time_labels(ax, timeval):
+    xLabels = ax.get_xticks().tolist()
+    newLabels = timeval[int(xLabels[0]):int((xLabels[len(xLabels) - 1]))]
+    ax.set_xticklabels(newLabels,rotation=45,ha='right')
 
 # Connect to the device's serial port, create plot and axes
 mult = ik.fluke.Fluke3000.open_serial(PORT, BAUD)
 fig, ax = plt.subplots()
+add_time_labels(ax, timeval)
 
 # Function to write data to csv file with timestamps
 def CsvWriteData(name, data):
@@ -77,6 +83,7 @@ def animate(i):
     # Plot and update the new values onto the plot
     plt.subplots_adjust(bottom=0.25)
     plt.plot(xval,yval, color = 'blue')
+    add_time_labels(ax, timeval)
 
 
 # Create scroll bar
@@ -88,10 +95,6 @@ def update_scroll(val):
     pos = scrollbar.val
     ax.set_xlim((pos/100)*timecnt, ((pos/100)*timecnt) + INTERVAL)
     fig.canvas.draw_idle()
-
-    Labels = ax.get_xticks().tolist()
-    newLabels = timeval[int(xLabels[0]):int((xLabels[len(xLabels) - 1]))]
-    ax.set_xticklabels(newLabels,rotation=45,ha='right')
 
     # xlabels = ax.get_xticklabels()
     # newXLabels = [datetime.datetime for tick in xlabels]
