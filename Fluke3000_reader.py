@@ -47,7 +47,7 @@ add_time_labels(ax, timeval)
 
 # Function to write data to csv file with timestamps
 def CsvWriteData(name, data):
-    with open(FILENAME, 'a', newline='') as csvfile:
+    with open(name, 'a', newline='') as csvfile:
         csvwriter = csv.writer(csvfile)
         if csvfile.tell() == 0:
             csvwriter.writerow(['Date', 'Time', 'Voltage'])
