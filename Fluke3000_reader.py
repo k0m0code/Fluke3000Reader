@@ -61,7 +61,6 @@ def CsvWriteData(name, data, time):
             csvwriter.writerow(['Date', 'Time', 'Voltage'])
         now = datetime.datetime.now()
         dateStamp = now.strftime('%Y-%m-%d')
-        # timeStamp = now.strftime('%H:%M:%S')
         csvwriter.writerow([dateStamp, time, data])
 
 # Animation function for graph. Updates graph and csv file with new voltage readings when called
