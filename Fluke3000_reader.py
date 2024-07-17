@@ -12,7 +12,6 @@
 #   Moving average
 #   Remove redundant timecnt value
 #   Make timestamp and data of csv and chart be consistent
-#   Fix the way the xvalues lags in front of the line
 import instruments as ik
 import re
 from itertools import count
@@ -20,15 +19,16 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from matplotlib.ticker import MaxNLocator
 from matplotlib.widgets import Slider
-import matplotlib.dates as mdates
+import threading
 import datetime
 import csv
 
-CsvWrite = True    # Csv file writing on/off
+CsvWrite = False    # Csv file writing on/off
 
 INTERVAL = 10       # Amount of seconds you want in interval window (multiplied by 2)
 DELAY = 1000        # Number of milliseconds between measurements
 BAUD = 115200
+SCROLL_HOLD = 5
 PORT = "\\\\.\\COM3"
 FILENAME = "voltage_data-" + datetime.datetime.now().strftime('%Y-%m-%d') + "_" + datetime.datetime.now().strftime('%H_%M_%S') +".csv"
 xval = []
@@ -38,11 +38,15 @@ for i in range(INTERVAL):
     timeval.append(" ")
 timesec = count()
 timecnt = 0
+scroll_status = False
+
+def pointFollow():
+    global scroll_status
+    scroll_status = False
 
 # Replace xaxis values with timestamps  
 def add_time_labels(ax, timeval):
     xLabels = ax.get_xticks().tolist()
-    # newLabels = timeval[int(xLabels[0]):int((xLabels[len(xLabels) - 1]))]
     newLabels = []
     for i in xLabels:
         newLabels.append(timeval[int(i)])    
@@ -67,10 +71,11 @@ def CsvWriteData(name, data, time):
 def animate(i):
     global timecnt
     volt = ''
+    timecnt = next(timesec)
     xval.append(timecnt)
     time = datetime.datetime.now().time().strftime("%H:%M:%S.%f")[:-4]
     timeval.insert(len(timeval)-INTERVAL,datetime.datetime.now().time().strftime("%H:%M:%S.%f")[:-4])
-    timecnt = next(timesec)
+    
     data = mult.measure(mult.Mode.voltage_dc)   # Measures the DC voltage
 
     # Append voltage data into yval list
@@ -89,16 +94,27 @@ def animate(i):
     # Plot and update the new values onto the plot
     plt.subplots_adjust(bottom=0.25)
     plt.plot(xval,yval, color = 'blue')
+    if (scroll_status != True) and (len(yval) > INTERVAL):
+        ax.set_xlim(xval[len(xval)-1] - (INTERVAL*0.8), xval[len(xval)-1]+(INTERVAL*0.2))
     add_time_labels(ax, timeval)
-
+    
 # Create scroll bar
 scrollax = plt.axes([0.1,0.02,0.8,0.06], facecolor = 'lightgoldenrodyellow')
 scrollbar = Slider(scrollax, 'scroll', 0, 100, valinit = 0, valstep=1)
+scrollTimer = threading.Timer(SCROLL_HOLD, pointFollow)
 
 # Update and scroll through the graph display
 def update_scroll(val):
+    global scrollTimer
+    global scroll_status
+    scroll_status = True
+    if scrollTimer.is_alive():
+        scrollTimer.cancel()
+    scrollTimer = threading.Timer(SCROLL_HOLD, pointFollow)
+    scrollTimer.start()
     pos = scrollbar.val
     ax.set_xlim((pos/100)*timecnt, ((pos/100)*timecnt) + INTERVAL)
+    add_time_labels(ax, timeval)
     fig.canvas.draw_idle()
 
 scrollbar.on_changed(update_scroll)                     # Scroll function
