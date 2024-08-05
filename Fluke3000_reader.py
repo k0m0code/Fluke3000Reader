@@ -23,9 +23,9 @@ import threading
 import datetime
 import csv
 
-CsvWrite = False    # Csv file writing on/off
+CsvWrite = True    # Csv file writing on/off
 
-INTERVAL = 10       # Amount of seconds you want in interval window (multiplied by 2)
+INTERVAL = 1000       # Amount of seconds you want in interval window (multiplied by 2)
 DELAY = 1000        # Number of milliseconds between measurements
 BAUD = 115200
 SCROLL_HOLD = 5
@@ -62,10 +62,10 @@ def CsvWriteData(name, data, time):
     with open(name, 'a', newline='') as csvfile:
         csvwriter = csv.writer(csvfile)
         if csvfile.tell() == 0:
-            csvwriter.writerow(['Date', 'Time', 'Voltage'])
+            csvwriter.writerow(['Time', 'Voltage'])
         now = datetime.datetime.now()
-        dateStamp = now.strftime('%Y-%m-%d')
-        csvwriter.writerow([dateStamp, time, data])
+        dateStamp = now.strftime('%Y-%m-%d') + " " + time
+        csvwriter.writerow([dateStamp, data])
 
 # Animation function for graph. Updates graph and csv file with new voltage readings when called
 def animate(i):
