@@ -7,8 +7,10 @@
 #   Todo: double check any code from AI and for matplotlib that's redundant (ex. update_scroll func, is fig.canvas.draw_idle() needed?) useful for optimizing program's memory and speed
 #   Todo: Add error handling
 #   Todo: Don't hard code, use constants instead
-#   Todo: Make the graph move along with the updating data if scroll bar is not in use
-#   Todo: graph scrolling too laggy right now
+#   Todo: graph scrolling too laggy right now\
+#   Todo: when you use zoom in feature, after a few sec it should also go back to following scroll bar at regular size
+#   Todo: if timeout or serial connection, try have python script reset the port again automatically
+#   Todo: When mouse hovers above the plotted line should return a data point
 #   Moving average
 #   Remove redundant timecnt value
 #   Make timestamp and data of csv and chart be consistent
@@ -23,13 +25,14 @@ import threading
 import datetime
 import csv
 
-CsvWrite = True    # Csv file writing on/off
+CsvWrite = False    # Csv file writing on/off
 
-INTERVAL = 1000       # Amount of seconds you want in interval window (multiplied by 2)
+INTERVAL = 30       # Amount of seconds you want in interval window (multiplied by 2)
 DELAY = 1000        # Number of milliseconds between measurements
 BAUD = 115200
 SCROLL_HOLD = 5
 PORT = "\\\\.\\COM3"
+
 FILENAME = "voltage_data-" + datetime.datetime.now().strftime('%Y-%m-%d') + "_" + datetime.datetime.now().strftime('%H_%M_%S') +".csv"
 xval = []
 yval = []
