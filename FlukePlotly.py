@@ -11,12 +11,16 @@
 #   Todo: if timeout or serial connection, try have python script reset the port again auto
 #   Todo: When mouse hovers above the plotted line should return a data point
 
+# 2025 Upodate adding Prometheus-client
+
+
 """
 https://stackoverflow.com/questions/50390506/how-to-make-serial-communication-from-python-dash-server
 """
 import dash
 from dash import dcc, html
 from dash.dependencies import Input, Output
+from prometheus_client import CollectorRegistry, Gauge, push_to_gateway
 import plotly.graph_objs as go
 import datetime
 import csv
@@ -34,6 +38,10 @@ BAUD = 115200
 PORT = "\\\\.\\COM3"
 FILENAME = "voltage_data-" + datetime.datetime.now().strftime('%Y-%m-%d') + "_" + datetime.datetime.now().strftime('%H_%M_%S') +".csv"
 
+PUSHGATEWAY_ADDRESS = 'localhost:9091'  # Replace with your server IP if remote
+registry = CollectorRegistry() # Create a registry and gauge for prometheus
+# Here voltmeter_voltage is used in Grafana
+voltage_gauge = Gauge('voltmeter_voltage', 'Voltage Reading from Voltmeter', registry=registry)
 
 xval = []
 yval = []
@@ -91,6 +99,11 @@ def update_graph(n):
     else:
         volt = 0
         yval.append(volt)
+
+    voltage_gauge.set(volt)
+
+    # Push data to Prometheus Pushgateway
+    push_to_gateway(PUSHGATEWAY_ADDRESS, job='voltmeter', registry=registry)
 
     if len(yval) >= ROLLING_AVG_MEASURE - 1:
         tempavg = yval[-10:]
