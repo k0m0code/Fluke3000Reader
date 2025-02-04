@@ -21,13 +21,14 @@ ENABLE_PROMETHEUS = True     # Enable/Disable Prometheus publishing
 
 # Serial Port Settings
 BAUD = 115200
-PORT = "\\\\.\\COM6" # Check in Device Managers where the FLUKE usb bluetooth received is installed
+PORT = "\\.\\COM6" # Check in Device Managers where the FLUKE usb bluetooth received is installed
 
 # Prometheus Settings
 PUSHGATEWAY_ADDRESS = 'localhost:9091'
 registry = CollectorRegistry()
 gauge_avg = Gauge('pressure_list', 'Average Reading from Voltmeter', registry=registry)
 gauge_individual = Gauge('pressure_value', 'Individual Readings from Voltmeter', ['index'], registry=registry)
+gauge_measurement_rate = Gauge('measurement_rate', 'Measurement Rate from Fluke Meter', registry=registry)  # New gauge for measurement rate
 
 # Data Acquisition Settings
 INTERVAL = 100
@@ -48,6 +49,7 @@ timeval = []
 timesec = count()
 pressure_list = []
 last_publish_time = time.time()
+measurement_count = 0  # Counter for measurements
 
 # Multimeter Initialization
 mult = ik.fluke.Fluke3000.open_serial(PORT, BAUD)
@@ -67,7 +69,7 @@ def CsvWriteData(name, data, time):
 # =========================
 # Prometheus Publishing Function
 # =========================
-def publish_to_prometheus(voltage_list):
+def publish_to_prometheus(voltage_list, measurement_rate):
     if not voltage_list:
         return
 
@@ -77,8 +79,10 @@ def publish_to_prometheus(voltage_list):
     for idx, value in enumerate(voltage_list):
         gauge_individual.labels(index=idx).set(value)
 
+    gauge_measurement_rate.set(measurement_rate)  # Publish measurement rate
+
     push_to_gateway(PUSHGATEWAY_ADDRESS, job='voltmeter', registry=registry)
-    print(f"[Prometheus] Data Sent: Avg = {avg_voltage:.2f} V | Total Readings = {len(voltage_list)}")
+    print(f"[Prometheus] Data Sent: Avg = {avg_voltage:.2f} V | Total Readings = {len(voltage_list)} | Measurement Rate = {measurement_rate:.2f} Hz")
 
 # =========================
 # Dash App Setup
@@ -117,7 +121,6 @@ def get_pressure(voltage_mV, unit='Torr'):
     return pressure_Torr
 
 
-
 # =========================
 # Dash Callback for Updating Graphs
 # =========================
@@ -127,7 +130,7 @@ def get_pressure(voltage_mV, unit='Torr'):
     [Input('interval-component', 'n_intervals')]
 )
 def update_graph(n):
-    global pressure_list, last_publish_time
+    global pressure_list, last_publish_time, measurement_count
 
     # Acquire voltage data
     volt = ''
@@ -146,6 +149,7 @@ def update_graph(n):
 
     yval.append(volt)
     pressure_list.append(get_pressure(volt * 1000, unit='Torr'))
+    measurement_count += 1  # Increment measurement count
     print(f"Measured Voltage: {volt} V")
 
     # Rolling Average Calculation
@@ -159,8 +163,10 @@ def update_graph(n):
 
     # Prometheus Publishing Every 15 Seconds
     if ENABLE_PROMETHEUS and (time.time() - last_publish_time >= PUBLISH_INTERVAL):
-        publish_to_prometheus(pressure_list)
+        measurement_rate = measurement_count / PUBLISH_INTERVAL  # Calculate measurement rate
+        publish_to_prometheus(pressure_list, measurement_rate)
         pressure_list = []  # Clear the list after publishing
+        measurement_count = 0  # Reset measurement count
         last_publish_time = time.time()
 
     # Graph 1: Raw Voltage Readings
