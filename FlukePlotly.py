@@ -16,8 +16,19 @@ from scipy.interpolate import interp1d
 import time
 
 
+from __future__ import print_function
+from sys import stdout
+from time import sleep
+from daqhats import mcc128, OptionFlags, HatIDs, HatError, AnalogInputMode, \
+    AnalogInputRange
+from daqhats_utils import select_hat_device, enum_mask_to_string, \
+    chan_list_to_mask, input_mode_to_string, input_range_to_string
+
+
+
 ENABLE_DASH = True           # Enable/Disable Dash app
 ENABLE_PROMETHEUS = True     # Enable/Disable Prometheus publishing
+mcc128_source = True         # Source from MCC128
 
 # Serial Port Settings
 BAUD = 115200
@@ -85,6 +96,15 @@ def publish_to_prometheus(voltage_list, measurement_rate):
     print(f"[Prometheus] Data Sent: Avg = {avg_voltage:.2f} V | Total Readings = {len(voltage_list)} | Measurement Rate = {measurement_rate:.2f} Hz")
 
 # =========================
+# mcc128 publishing
+# =========================
+READ_ALL_AVAILABLE = -1
+CURSOR_BACK_2 = '\x1b[2D'
+ERASE_TO_END_OF_LINE = '\x1b[0K'
+
+
+
+# =========================
 # Dash App Setup
 # =========================
 app = dash.Dash(__name__)
@@ -129,16 +149,47 @@ def get_pressure(voltage_mV, unit='Torr'):
      Output('live-update-graph-2', 'figure')],
     [Input('interval-component', 'n_intervals')]
 )
-def update_graph(n):
+def update_graph(n, mcc128_measurements):
     global pressure_list, last_publish_time, measurement_count
-
     # Acquire voltage data
     volt = ''
     xval.append(next(timesec))
     current_time = datetime.datetime.now().strftime("%H:%M:%S.%f")[:-4]
     timeval.append(current_time)
+    data = None
+    if mcc128_measurements:
+    
 
-    data = mult.measure(mult.Mode.voltage_dc)
+        read_result = hat.a_in_scan_read(read_request_size, timeout)
+
+        # Check for an overrun error
+        if read_result.hardware_overrun:
+            print('\n\nHardware overrun\n')
+            return False
+        elif read_result.buffer_overrun:
+            print('\n\nBuffer overrun\n')
+            return False
+
+        samples_read_per_channel = int(len(read_result.data) / num_channels)
+        total_samples_read += samples_read_per_channel
+
+        # Display the last sample for each channel.
+        print('\r{:12}'.format(samples_read_per_channel),
+              ' {:12} '.format(total_samples_read), end='')
+
+        if samples_read_per_channel > 0:
+            index = samples_read_per_channel * num_channels - num_channels
+
+            for i in range(num_channels):
+                print('{:10.5f}'.format(read_result.data[index+i]), 'V ',
+                      end='')
+            stdout.flush()
+
+            sleep(0.1)
+
+        data = read_and_display_data(hat, num_channels)
+    else:
+        data = mult.measure(mult.Mode.voltage_dc)
 
     # Process the data
     if str(data) != '0.0 V':
@@ -190,8 +241,8 @@ def update_graph(n):
             xaxis_rangeslider=dict(visible=False)
         )
     }
-
-    return figure1, figure2
+    return True
+    # return figure1, figure2
 
 # =========================
 # Run the Dash App
@@ -201,9 +252,44 @@ if __name__ == '__main__':
         app.run_server(debug=True, use_reloader=False)
     else:
         # If Dash is disabled, continuously acquire data and publish to Prometheus
+        if mcc128_source:
+            channels = [0, 1, 2, 3]
+            channel_mask = chan_list_to_mask(channels)
+            num_channels = len(channels)
+        
+            input_mode = AnalogInputMode.SE
+            input_range = AnalogInputRange.BIP_10V
+        
+            samples_per_channel = 0
+        
+            options = OptionFlags.CONTINUOUS
+        
+            scan_rate = 1000.0
+
+            
+            # Select an MCC 128 HAT device to use.
+            address = select_hat_device(HatIDs.MCC_128)
+            hat = mcc128(address)
+
+            hat.a_in_mode_write(input_mode)
+            hat.a_in_range_write(input_range)
+
+
+            # Configure and start the scan.
+            # Since the continuous option is being used, the samples_per_channel
+            # parameter is ignored if the value is less than the default internal
+            # buffer size (10000 * num_channels in this case). If a larger internal
+            # buffer size is desired, set the value of this parameter accordingly.
+            hat.a_in_scan_start(channel_mask, samples_per_channel, scan_rate,
+                            options)
+            total_samples_read = 0
+            read_request_size = READ_ALL_AVAILABLE
+            timeout = 5.0
+            
+            mcc128NoBug = True
         try:
-            while True:
-                update_graph(0)
+            while True and mcc128NoBug:
+                mcc128NoBug = update_graph(0, mcc128_source)
                 time.sleep(DELAY)
         except KeyboardInterrupt:
             print("Data acquisition stopped.")
