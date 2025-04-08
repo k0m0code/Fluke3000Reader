@@ -101,7 +101,37 @@ def publish_to_prometheus(voltage_list, measurement_rate):
 READ_ALL_AVAILABLE = -1
 CURSOR_BACK_2 = '\x1b[2D'
 ERASE_TO_END_OF_LINE = '\x1b[0K'
+channels = [0, 1, 2, 3]
+channel_mask = chan_list_to_mask(channels)
+num_channels = len(channels)
+         
+input_mode = AnalogInputMode.SE
+input_range = AnalogInputRange.BIP_10V
+         
+samples_per_channel = 0
+options = OptionFlags.CONTINUOUS
+         
+scan_rate = 1000.0
 
+            
+# Select an MCC 128 HAT device to use.
+ address = select_hat_device(HatIDs.MCC_128)
+            hat = mcc128(address)
+hat.a_in_mode_write(input_mode)
+hat.a_in_range_write(input_range)
+
+
+# Configure and start the scan.
+# Since the continuous option is being used, the samples_per_channel
+# parameter is ignored if the value is less than the default internal
+# buffer size (10000 * num_channels in this case). If a larger internal
+# buffer size is desired, set the value of this parameter accordingly.
+hat.a_in_scan_start(channel_mask, samples_per_channel, scan_rate,
+                            options)
+         
+total_samples_read = 0
+read_request_size = READ_ALL_AVAILABLE
+timeout = 5.0
 
 
 # =========================
@@ -185,8 +215,6 @@ def update_graph(n, mcc128_measurements):
                       end='')
             stdout.flush()
 
-            sleep(0.1)
-
         data = read_and_display_data(hat, num_channels)
     else:
         data = mult.measure(mult.Mode.voltage_dc)
@@ -251,42 +279,8 @@ if __name__ == '__main__':
     if ENABLE_DASH:
         app.run_server(debug=True, use_reloader=False)
     else:
-        # If Dash is disabled, continuously acquire data and publish to Prometheus
-        if mcc128_source:
-            channels = [0, 1, 2, 3]
-            channel_mask = chan_list_to_mask(channels)
-            num_channels = len(channels)
-        
-            input_mode = AnalogInputMode.SE
-            input_range = AnalogInputRange.BIP_10V
-        
-            samples_per_channel = 0
-        
-            options = OptionFlags.CONTINUOUS
-        
-            scan_rate = 1000.0
-
-            
-            # Select an MCC 128 HAT device to use.
-            address = select_hat_device(HatIDs.MCC_128)
-            hat = mcc128(address)
-
-            hat.a_in_mode_write(input_mode)
-            hat.a_in_range_write(input_range)
-
-
-            # Configure and start the scan.
-            # Since the continuous option is being used, the samples_per_channel
-            # parameter is ignored if the value is less than the default internal
-            # buffer size (10000 * num_channels in this case). If a larger internal
-            # buffer size is desired, set the value of this parameter accordingly.
-            hat.a_in_scan_start(channel_mask, samples_per_channel, scan_rate,
-                            options)
-            total_samples_read = 0
-            read_request_size = READ_ALL_AVAILABLE
-            timeout = 5.0
-            
-            mcc128NoBug = True
+        # If Dash is disabled, continuously acquire data and publish to Prometheus   
+        mcc128NoBug = True
         try:
             while True and mcc128NoBug:
                 mcc128NoBug = update_graph(0, mcc128_source)
