@@ -110,15 +110,14 @@ def read_and_display_data(hat, num_channels):
         # Display the last sample for each channel.
         print('\r{:12}'.format(samples_read_per_channel),
               ' {:12} '.format(total_samples_read), end='')
-
         if samples_read_per_channel > 0:
             index = samples_read_per_channel * num_channels - num_channels
 
             for i in range(num_channels):
-                print('{:10.5f}'.format(read_result.data[index+i]), 'V ',
-                      end='')
+                #print('{:10.5f}'.format(read_result.data[index+i]), 'V ', end='')
+                print('{:10.5f}'.format(read_result.data[index+0]), end = '')
+               #print('{:10.5f}'.format(read_result.data[0]), 'V index ', str(index+i), end = '') 
             stdout.flush()
-
             sleep(0.1)
 
     print('\n')
