@@ -98,6 +98,7 @@ def publish_to_prometheus(voltage_list, measurement_rate):
 # =========================
 # mcc128 publishing
 # =========================
+CHANNEL = 0
 READ_ALL_AVAILABLE = -1
 CURSOR_BACK_2 = '\x1b[2D'
 ERASE_TO_END_OF_LINE = '\x1b[0K'
@@ -115,8 +116,8 @@ scan_rate = 1000.0
 
             
 # Select an MCC 128 HAT device to use.
- address = select_hat_device(HatIDs.MCC_128)
-            hat = mcc128(address)
+address = select_hat_device(HatIDs.MCC_128)
+hat = mcc128(address)
 hat.a_in_mode_write(input_mode)
 hat.a_in_range_write(input_range)
 
@@ -129,7 +130,6 @@ hat.a_in_range_write(input_range)
 hat.a_in_scan_start(channel_mask, samples_per_channel, scan_rate,
                             options)
          
-total_samples_read = 0
 read_request_size = READ_ALL_AVAILABLE
 timeout = 5.0
 
@@ -188,8 +188,6 @@ def update_graph(n, mcc128_measurements):
     timeval.append(current_time)
     data = None
     if mcc128_measurements:
-    
-
         read_result = hat.a_in_scan_read(read_request_size, timeout)
 
         # Check for an overrun error
@@ -201,21 +199,10 @@ def update_graph(n, mcc128_measurements):
             return False
 
         samples_read_per_channel = int(len(read_result.data) / num_channels)
-        total_samples_read += samples_read_per_channel
-
-        # Display the last sample for each channel.
-        print('\r{:12}'.format(samples_read_per_channel),
-              ' {:12} '.format(total_samples_read), end='')
 
         if samples_read_per_channel > 0:
             index = samples_read_per_channel * num_channels - num_channels
-
-            for i in range(num_channels):
-                print('{:10.5f}'.format(read_result.data[index+i]), 'V ',
-                      end='')
-            stdout.flush()
-
-        data = read_and_display_data(hat, num_channels)
+            data = '{:10.5f}'.format(read_result.data[index + CHANNEL]) + ' V'
     else:
         data = mult.measure(mult.Mode.voltage_dc)
 
@@ -282,7 +269,7 @@ if __name__ == '__main__':
         # If Dash is disabled, continuously acquire data and publish to Prometheus   
         mcc128NoBug = True
         try:
-            while True and mcc128NoBug:
+            while mcc128NoBug:
                 mcc128NoBug = update_graph(0, mcc128_source)
                 time.sleep(DELAY)
         except KeyboardInterrupt:
