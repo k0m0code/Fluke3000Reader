@@ -1,6 +1,7 @@
 # Authors: Christian Komo, Niels Bidault
 # 2025 Update adding Prometheus-client
 
+from __future__ import print_function
 import dash
 from dash import dcc, html
 from dash.dependencies import Input, Output
@@ -8,7 +9,7 @@ from prometheus_client import CollectorRegistry, Gauge, push_to_gateway
 import plotly.graph_objs as go
 import datetime
 import csv
-import instruments as ik
+#import instruments as ik
 import re
 from itertools import count
 import numpy as np
@@ -16,7 +17,6 @@ from scipy.interpolate import interp1d
 import time
 
 
-from __future__ import print_function
 from sys import stdout
 from time import sleep
 from daqhats import mcc128, OptionFlags, HatIDs, HatError, AnalogInputMode, \
@@ -26,7 +26,7 @@ from daqhats_utils import select_hat_device, enum_mask_to_string, \
 
 
 
-ENABLE_DASH = True           # Enable/Disable Dash app
+ENABLE_DASH = False           # Enable/Disable Dash app
 ENABLE_PROMETHEUS = True     # Enable/Disable Prometheus publishing
 mcc128_source = True         # Source from MCC128
 
@@ -63,7 +63,7 @@ last_publish_time = time.time()
 measurement_count = 0  # Counter for measurements
 
 # Multimeter Initialization
-mult = ik.fluke.Fluke3000.open_serial(PORT, BAUD)
+##mult = ik.fluke.Fluke3000.open_serial(PORT, BAUD)
 
 # =========================
 # CSV Writing Function
@@ -199,13 +199,13 @@ def update_graph(n, mcc128_measurements):
             return False
 
         samples_read_per_channel = int(len(read_result.data) / num_channels)
-
         if samples_read_per_channel > 0:
             index = samples_read_per_channel * num_channels - num_channels
             data = '{:10.5f}'.format(read_result.data[index + CHANNEL]) + ' V'
+        else:
+            data = '0.0 V'
     else:
         data = mult.measure(mult.Mode.voltage_dc)
-
     # Process the data
     if str(data) != '0.0 V':
         value = re.findall(r'-?\d+\.\d+', str(data))
@@ -264,7 +264,7 @@ def update_graph(n, mcc128_measurements):
 # =========================
 if __name__ == '__main__':
     if ENABLE_DASH:
-        app.run_server(debug=True, use_reloader=False)
+        app.run(debug=True, use_reloader=False)
     else:
         # If Dash is disabled, continuously acquire data and publish to Prometheus   
         mcc128NoBug = True
@@ -278,5 +278,5 @@ if __name__ == '__main__':
 # =========================
 # Cleanup
 # =========================
-mult.reset()
-mult.flush()
+#mult.reset()
+#mult.flush()
